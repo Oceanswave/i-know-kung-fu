@@ -127,13 +127,19 @@ fi
 if [[ -n "$RULESET_ID" ]]; then
   RULESET_JSON="$(gh api "repos/$OWNER/$REPO/rulesets/$RULESET_ID")"
 
-  for rule_type in update required_status_checks pull_request; do
+  for rule_type in required_status_checks pull_request; do
     if jq -e --arg t "$rule_type" '.rules[] | select(.type==$t)' <<<"$RULESET_JSON" >/dev/null; then
       pass "ruleset contains rule '$rule_type'"
     else
       fail "ruleset missing '$rule_type' rule"
     fi
   done
+
+  if jq -e '.rules[] | select(.type=="update")' <<<"$RULESET_JSON" >/dev/null; then
+    pass "ruleset includes optional 'update' rule"
+  else
+    warn "ruleset does not include 'update' rule (optional for PR-only flow)"
+  fi
 
   if jq -e '.conditions.ref_name.include[] | select(. == "~DEFAULT_BRANCH")' <<<"$RULESET_JSON" >/dev/null; then
     pass "ruleset targets default branch"
