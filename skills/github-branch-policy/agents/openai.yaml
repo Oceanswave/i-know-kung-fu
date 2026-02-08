@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub Branch Policy"
+  short_description: "Audit GitHub branch policy and workflow hygiene"
+  default_prompt: "Audit this repository's GitHub branch policy and branch hygiene configuration."

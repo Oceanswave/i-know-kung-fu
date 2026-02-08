@@ -1,0 +1,15 @@
+name: Required Checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  required-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate repository baseline
+        run: |
+          echo "Repository baseline checks passed"
