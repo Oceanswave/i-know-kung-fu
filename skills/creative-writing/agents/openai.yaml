@@ -1,0 +1,4 @@
+interface:
+  display_name: "Creative Writing"
+  short_description: "Write vivid fiction with strict style constraints"
+  default_prompt: "Write original creative prose using a lived-in voice, concrete sensory detail, and anti-cliche constraints."
