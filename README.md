@@ -7,7 +7,7 @@ Local skill repository scaffold for coding agents.
 - Root agent index in `AGENTS.md`
 - Skill folders in `skills/`
 - Initial skill: `skills/github-branch-policy/`
-- GitHub workflows for required checks, auto-merge, and closed-branch cleanup
+- GitHub workflows for required checks, auto-merge, closed-branch cleanup, and policy drift audits
 
 ## Repository Structure
 
@@ -21,6 +21,11 @@ Local skill repository scaffold for coding agents.
 │       └── agents/openai.yaml
 └── .github/workflows/
 ```
+
+## CI and Policy Gates
+
+- `Required Checks` validates skill structure and audits repository policy drift on every push to `main` and every pull request.
+- `Policy Drift Audit` runs daily and on-demand to verify critical repository settings and ruleset integrity.
 
 ## Skill Usage
 

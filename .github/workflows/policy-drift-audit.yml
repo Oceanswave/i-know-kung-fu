@@ -1,0 +1,23 @@
+name: Policy Drift Audit
+
+on:
+  schedule:
+    - cron: "17 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  policy-drift-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Audit repository policy drift
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash scripts/audit_repo_policy.sh "${GITHUB_REPOSITORY}"
