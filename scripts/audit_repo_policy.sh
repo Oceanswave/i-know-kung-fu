@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_INPUT="${1:-${GITHUB_REPOSITORY:-}}"
 EXPECTED_RULESET_NAME="main-branch-policy"
-EXPECTED_STATUS_CONTEXT="Required Checks / required-checks"
+EXPECTED_STATUS_CONTEXT="required-checks"
 STRICT_ADMIN_SETTINGS="${AUDIT_STRICT_ADMIN_SETTINGS:-0}"
 
 if [[ -z "$REPO_INPUT" ]]; then
