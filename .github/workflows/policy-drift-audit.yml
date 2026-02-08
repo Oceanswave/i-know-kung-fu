@@ -18,6 +18,7 @@ jobs:
 
       - name: Audit repository policy drift
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN != '' && secrets.REPO_ADMIN_TOKEN || github.token }}
+          AUDIT_STRICT_ADMIN_SETTINGS: ${{ secrets.REPO_ADMIN_TOKEN != '' && '1' || '0' }}
         run: |
           bash scripts/audit_repo_policy.sh "${GITHUB_REPOSITORY}"

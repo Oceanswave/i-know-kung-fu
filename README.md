@@ -26,6 +26,7 @@ Local skill repository scaffold for coding agents.
 
 - `Required Checks` validates skill structure and audits repository policy drift on every push to `main` and every pull request.
 - `Policy Drift Audit` runs daily and on-demand to verify critical repository settings and ruleset integrity.
+- Optional: set repo secret `REPO_ADMIN_TOKEN` to enable strict admin-setting verification in drift audits.
 
 ## Skill Usage
 

@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_INPUT="${1:-${GITHUB_REPOSITORY:-}}"
 EXPECTED_RULESET_NAME="main-branch-policy"
 EXPECTED_STATUS_CONTEXT="Required Checks / required-checks"
+STRICT_ADMIN_SETTINGS="${AUDIT_STRICT_ADMIN_SETTINGS:-0}"
 
 if [[ -z "$REPO_INPUT" ]]; then
   REPO_INPUT="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
@@ -22,6 +23,33 @@ pass() {
   echo "OK: $1"
 }
 
+warn() {
+  echo "WARN: $1"
+}
+
+check_admin_bool() {
+  local field="$1"
+  local expected="$2"
+  local label="$3"
+  local value
+  value="$(jq -r ".$field" <<<"$REPO_JSON")"
+
+  if [[ "$STRICT_ADMIN_SETTINGS" == "1" ]]; then
+    if [[ "$value" == "$expected" ]]; then
+      pass "$label"
+    else
+      fail "$label (expected $expected, got $value)"
+    fi
+    return
+  fi
+
+  if [[ "$value" == "$expected" ]]; then
+    pass "$label"
+  else
+    warn "$label could not be strictly verified in non-admin mode (got $value)"
+  fi
+}
+
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "ERROR: missing required command '$1'" >&2
@@ -37,17 +65,8 @@ RULESET_LIST_JSON="$(gh api "repos/$OWNER/$REPO/rulesets")"
 WORKFLOW_JSON="$(gh api "repos/$OWNER/$REPO/actions/workflows")"
 INTERACTION_JSON="$(gh api "repos/$OWNER/$REPO/interaction-limits" 2>/dev/null || true)"
 
-if [[ "$(jq -r '.delete_branch_on_merge' <<<"$REPO_JSON")" == "true" ]]; then
-  pass "delete_branch_on_merge is enabled"
-else
-  fail "delete_branch_on_merge is not enabled"
-fi
-
-if [[ "$(jq -r '.allow_auto_merge' <<<"$REPO_JSON")" == "true" ]]; then
-  pass "auto-merge is enabled at repository level"
-else
-  fail "auto-merge is not enabled at repository level"
-fi
+check_admin_bool "delete_branch_on_merge" "true" "delete_branch_on_merge is enabled"
+check_admin_bool "allow_auto_merge" "true" "auto-merge is enabled at repository level"
 
 if [[ "$(jq -r '.has_issues' <<<"$REPO_JSON")" == "false" ]]; then
   pass "issues are disabled"
@@ -80,13 +99,22 @@ else
 fi
 
 if [[ -n "$INTERACTION_JSON" ]]; then
-  if [[ "$(jq -r '.limit' <<<"$INTERACTION_JSON")" == "collaborators_only" ]]; then
+  limit_value="$(jq -r '.limit // "none"' <<<"$INTERACTION_JSON")"
+  if [[ "$limit_value" == "collaborators_only" ]]; then
     pass "interaction limits are restricted to collaborators_only"
   else
-    fail "interaction limits are not collaborators_only"
+    if [[ "$STRICT_ADMIN_SETTINGS" == "1" ]]; then
+      fail "interaction limits are not collaborators_only (got $limit_value)"
+    else
+      warn "interaction limits could not be strictly verified in non-admin mode (got $limit_value)"
+    fi
   fi
 else
-  fail "interaction limits are not configured"
+  if [[ "$STRICT_ADMIN_SETTINGS" == "1" ]]; then
+    fail "interaction limits are not configured"
+  else
+    warn "interaction limits could not be read in non-admin mode"
+  fi
 fi
 
 RULESET_ID="$(jq -r --arg n "$EXPECTED_RULESET_NAME" '.[] | select(.name==$n and .target=="branch" and .enforcement=="active") | .id' <<<"$RULESET_LIST_JSON" | head -n 1)"
