@@ -2,7 +2,7 @@ name: Auto Merge
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, labeled]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
 
 permissions:
   contents: write
@@ -10,16 +10,21 @@ permissions:
 
 jobs:
   auto-merge:
-    if: github.event.pull_request.draft == false && contains(github.event.pull_request.labels.*.name, 'automerge')
     runs-on: ubuntu-latest
     steps:
-      - name: Enable auto-merge for labeled PR
+      - name: Enable auto-merge for PR
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
         run: |
+          if [ "${IS_DRAFT}" = "true" ]; then
+            echo "PR is draft. Auto-merge not enabled yet."
+            exit 0
+          fi
+
           gh pr merge "$PR_NUMBER" --repo "$REPO" --squash --auto || {
-            echo "Auto-merge could not be enabled for this PR event; leaving unchanged."
+            echo "Auto-merge could not be enabled for this PR event. Leaving unchanged."
             exit 0
           }
