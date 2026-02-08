@@ -13,6 +13,8 @@ This repo is where I keep skills that are useful in my day-to-day work and skill
 - Current skills:
   - `skills/github-branch-policy/`
   - `skills/creative-writing/`
+  - `skills/book-concept-strategy/`
+  - `skills/book-manuscript-development/`
 - GitHub workflows for required checks, auto-merge, closed-branch cleanup, and policy drift audits
 
 ## Repository Structure
@@ -26,6 +28,12 @@ This repo is where I keep skills that are useful in my day-to-day work and skill
 │   │   ├── SKILL.md
 │   │   └── agents/openai.yaml
 │   └── creative-writing/
+│   │   ├── SKILL.md
+│   │   └── agents/openai.yaml
+│   ├── book-concept-strategy/
+│   │   ├── SKILL.md
+│   │   └── agents/openai.yaml
+│   └── book-manuscript-development/
 │       ├── SKILL.md
 │       └── agents/openai.yaml
 └── .github/workflows/
@@ -48,3 +56,13 @@ The `creative-writing` skill is designed to produce constrained literary prose w
 
 - Skill definition: `skills/creative-writing/SKILL.md`
 - UI metadata: `skills/creative-writing/agents/openai.yaml`
+
+The `book-concept-strategy` skill is designed to turn expertise into marketable book concepts and positioning assets.
+
+- Skill definition: `skills/book-concept-strategy/SKILL.md`
+- UI metadata: `skills/book-concept-strategy/agents/openai.yaml`
+
+The `book-manuscript-development` skill is designed to build full manuscript components from outline through revision.
+
+- Skill definition: `skills/book-manuscript-development/SKILL.md`
+- UI metadata: `skills/book-manuscript-development/agents/openai.yaml`

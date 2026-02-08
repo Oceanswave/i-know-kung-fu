@@ -1,0 +1,4 @@
+interface:
+  display_name: "Book Concept Strategy"
+  short_description: "Design market-ready nonfiction book positioning"
+  default_prompt: "Create high-demand book concepts, title systems, and reader-facing positioning assets."
