@@ -1,0 +1,4 @@
+interface:
+  display_name: "Book Manuscript Development"
+  short_description: "Build chapter drafts and supporting book content"
+  default_prompt: "Develop chapter outlines, draft chapters, and create supporting materials for a complete manuscript."
