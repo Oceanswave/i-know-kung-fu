@@ -52,6 +52,7 @@ Pass criteria:
 Remediation:
 - Create or enable a repository ruleset for the default branch.
 - Add missing `update` and `required_status_checks` rules.
+- Ensure the required status check context matches the actual check run name (`required-checks`).
 
 ### 2. Solo-dev setting: `require_code_owner_review` is `false`
 
