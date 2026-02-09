@@ -44,8 +44,9 @@ echo "Auditing $OWNER_REPO (default: $DEFAULT_BRANCH)"
 - Repository has `allow_auto_merge: true`.
 - Active default-branch ruleset includes `pull_request` and `required_status_checks`.
 - Required status check contexts exactly match live check names.
+- Default-branch ruleset has no bypass actors (`bypass_actors: []`).
 - `update` rule is optional:
-  - If enabled, bypass actors must be intentionally configured.
+  - If enabled, keep default no-bypass posture and solve merge flow with correct workflow/ruleset design.
   - If not needed for your workflow, remove it to prevent unnecessary `BLOCKED` states.
 - Branch updater workflow is not `push`-only (has at least one fallback trigger such as `pull_request_target`, `schedule`, or `workflow_dispatch`).
 - Auto-merge workflow tolerates transient API failures (retry/backoff).
@@ -113,23 +114,34 @@ Remediation:
 
 ---
 
-### 4. `update` rule and bypass actors are compatible with your auto-merge flow
+### 4. Default no-bypass policy is enforced, and `update` remains intentional
 
 Verification:
 ```bash
 gh api "repos/$OWNER/$REPO/rulesets" \
   --jq '.[] | select(.enforcement=="active" and .target=="branch") |
-    {id,name,has_update:([.rules[].type] | index("update") != null),
+    {id,name,includes_default:((.conditions.ref_name.include // []) | index("~DEFAULT_BRANCH") != null),
+     has_update:([.rules[].type] | index("update") != null),
+     bypass_actor_count:((.bypass_actors // []) | length),
      bypass_actors:((.bypass_actors // []) | map({actor_type,actor_id,bypass_mode}))}'
+
+# Optional deep check for default-branch ruleset:
+RULESET_ID="$(gh api "repos/$OWNER/$REPO/rulesets" \
+  --jq '.[] | select(.enforcement=="active" and .target=="branch") |
+    select((.conditions.ref_name.include // []) | index("~DEFAULT_BRANCH")) | .id' | head -n 1)"
+gh api "repos/$OWNER/$REPO/rulesets/$RULESET_ID" \
+  --jq '{id,name,current_user_can_bypass,bypass_actors}'
 ```
 
 Pass criteria:
+- For the default-branch ruleset, `bypass_actor_count` is `0` as the default policy.
 - If `has_update` is `false`, this is acceptable when no branch-update automation is required.
-- If `has_update` is `true`, bypass actors and modes are intentionally set so trusted maintainers/automation can still complete merges.
+- If `has_update` is `true`, merge flow still works without relying on permanent bypass actors.
 
 Remediation:
 - For solo-maintainer repos, prefer removing unneeded `update` requirements.
-- If `update` is required, add explicit bypass actors/modes for roles/apps that must merge.
+- Remove bypass actors from the default-branch ruleset.
+- If emergency bypass is temporarily required, keep scope minimal, time-box it, document owner approval, and remove it immediately after incident resolution.
 - Re-test with a smoke PR after policy changes.
 
 ---
@@ -425,6 +437,7 @@ gh pr view <pr_number> --repo "$OWNER_REPO" \
 
 - Do not delete branches until confirmed stale and unprotected.
 - Do not disable workflows blindly; verify canonical registration first.
+- Default policy is no bypass actors on default-branch rulesets unless there is a documented, time-boxed incident exception.
 - Treat `push + 0 jobs + no logs` on workflow runs as likely ghost/stale registration evidence.
 - Do not treat `autoMergeRequest != null` as success by itself. Verify `mergeStateStatus` and actual merge outcome.
 - Prefer deterministic `gh api` evidence over assumptions.
