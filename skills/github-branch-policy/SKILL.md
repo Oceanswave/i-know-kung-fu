@@ -44,13 +44,14 @@ echo "Auditing $OWNER_REPO (default: $DEFAULT_BRANCH)"
 - Repository has `allow_auto_merge: true`.
 - Active default-branch ruleset includes `pull_request` and `required_status_checks`.
 - Required status check contexts exactly match live check names.
-- Default-branch ruleset has no bypass actors (`bypass_actors: []`).
-- Required status check contexts are limited to merge-critical gates; non-critical provider checks (for example `Vercel Preview Comments`) may not be present and may unintentionally break auto-merge.
+- Required status check contexts are limited to merge-critical gates; non-critical provider checks (for example `Vercel Preview Comments`) stay optional.
 - `update` rule is optional:
   - If enabled, bypass actors must be intentionally configured.
   - If not needed for your workflow, remove it to prevent unnecessary `BLOCKED` states.
 - Branch updater workflow is not `push`-only (has at least one fallback trigger such as `pull_request_target`, `schedule`, or `workflow_dispatch`).
-- Branch updater verifies required CI checks are present on the latest PR head SHA after any update-branch operation.
+- Branch updater waits for async `update-branch` head refresh, then verifies required checks on PR rollup for the new head.
+- If CI dispatch does not attach required checks to PR rollup, updater has a controlled fallback to force a `pull_request` synchronize run.
+- Before any automation fallback push, updater re-checks PR `state`, `mergedAt`, and `headRefOid`; it must skip branch writes unless PR is still open on the expected head.
 - Auto-merge workflow tolerates transient API failures (retry/backoff).
 - `delete_branch_on_merge: true` (or equivalent cleanup automation).
 
@@ -109,7 +110,8 @@ gh pr list --state all --limit 20 --json number \
 ```
 
 Pass criteria:
-- Required contexts exactly match real checks reported on PRs (case-sensitive), for example `ci`, `Vercel`, `Vercel Preview Comments`.
+- Required contexts exactly match merge-critical checks reported on PRs (case-sensitive), for example `ci`, `Vercel`.
+- Non-critical checks such as `Vercel Preview Comments` remain optional unless there is a deliberate policy reason to require them.
 
 Remediation:
 - Update required check contexts in the ruleset to match actual check names.
@@ -132,8 +134,7 @@ Pass criteria:
 
 Remediation:
 - For solo-maintainer repos, prefer removing unneeded `update` requirements.
-- Remove bypass actors from the default-branch ruleset.
-- If emergency bypass is temporarily required, keep scope minimal, time-box it, document owner approval, and remove it immediately after incident resolution.
+- If `update` is required, add explicit bypass actors/modes for roles/apps that must merge.
 - Re-test with a smoke PR after policy changes.
 
 ---
@@ -250,6 +251,7 @@ Pass criteria:
 - Updater is not `push`-only in environments where merges are performed by automation/apps.
 - At least one fallback trigger exists (`pull_request_target`, `schedule`, or `workflow_dispatch`).
 - Updater runs continue to appear after recent merges to default branch.
+- When updater merges default branch into a PR, it re-reads PR head after the async update completes before validating CI presence.
 
 Remediation:
 - Add fallback triggers to updater workflow (`pull_request_target`, `schedule`, `workflow_dispatch`).
@@ -290,7 +292,7 @@ Remediation:
 
 ### 10a. Required checks are attached to the latest PR head SHA
 
-This catches the incident pattern where a branch updater creates a new PR head commit, but `ci` only exists on the previous SHA, leaving auto-merge `BLOCKED`.
+This catches the incident pattern where updater automation changes PR head SHA, but required checks are not attached to the PR rollup for that new head, leaving auto-merge `BLOCKED`.
 
 Verification:
 ```bash
@@ -298,14 +300,13 @@ PR_NUMBER="<pr_number>"
 gh pr view "$PR_NUMBER" \
   --json headRefName,headRefOid,mergeStateStatus,statusCheckRollup
 
-HEAD_SHA="$(gh pr view "$PR_NUMBER" --json headRefOid -q .headRefOid)"
-gh api "repos/$OWNER/$REPO/commits/$HEAD_SHA/check-runs" \
-  --jq '[.check_runs[] | {name,status,conclusion}]'
+gh pr checks "$PR_NUMBER" --watch=false --json name,state,bucket,link
 ```
 
 Pass criteria:
-- Every required status check context appears on the PR's current `headRefOid`.
-- If updater automation changed the head SHA, required checks (especially `ci`) are present or queued on that new SHA.
+- Every required status check context appears in PR rollup/checks for the PR's current `headRefOid`.
+- If updater automation changed head SHA, required checks (especially `ci`) appear in PR rollup as `pending` or `success` on the new head.
+- Do not treat commit-level check-runs alone as sufficient evidence for mergeability; branch protection evaluates PR-attached contexts.
 
 Remediation:
 - Immediate unstick:
@@ -313,10 +314,18 @@ Remediation:
 HEAD_REF="$(gh pr view "$PR_NUMBER" --json headRefName -q .headRefName)"
 gh workflow run CI --ref "$HEAD_REF"
 ```
+- If `workflow_dispatch` CI does not appear in PR rollup, force a `pull_request` synchronize event by pushing an empty commit:
+```bash
+git checkout "$HEAD_REF"
+git commit --allow-empty -m "chore(ci): retrigger required checks [manual-unblock]"
+git push origin "$HEAD_REF"
+```
 - Permanent fix:
-  - Re-resolve `headRefName` + `headRefOid` after updater actions.
-  - Verify required checks on that exact SHA.
-  - Dispatch CI when required checks are missing.
+  - Re-resolve `headRefName` + `headRefOid` after updater actions and wait for async head movement.
+  - Verify required checks in PR rollup, not only commit check-runs.
+  - Dispatch CI when required checks are missing, then re-check PR rollup.
+  - Guard fallback branch writes by re-reading PR `state`, `mergedAt`, and `headRefOid` immediately before push; skip if PR is merged/closed or head changed.
+  - Add a guarded synchronize fallback (one-time nudge commit) when dispatch does not attach required contexts.
   - Keep non-critical checks out of required-status contexts.
 
 ---
@@ -430,6 +439,12 @@ gh api --method PUT "repos/$OWNER/$REPO/pulls/<pr_number>/update-branch" -f upda
 HEAD_REF="$(gh pr view <pr_number> --json headRefName -q .headRefName)"
 gh workflow run CI --ref "$HEAD_REF"
 
+# If CI is still missing from PR rollup, force synchronize
+gh pr checks <pr_number> --watch=false --json name,state,bucket,link
+git checkout "$HEAD_REF"
+git commit --allow-empty -m "chore(ci): retrigger required checks [manual-unblock]"
+git push origin "$HEAD_REF"
+
 # Re-check status
 gh pr view <pr_number> --repo "$OWNER_REPO" \
   --json headRefOid,mergeStateStatus,autoMergeRequest,statusCheckRollup
@@ -466,8 +481,8 @@ gh pr view <pr_number> --repo "$OWNER_REPO" \
 
 - Do not delete branches until confirmed stale and unprotected.
 - Do not disable workflows blindly; verify canonical registration first.
-- Default policy is no bypass actors on default-branch rulesets unless there is a documented, time-boxed incident exception.
 - Treat `push + 0 jobs + no logs` on workflow runs as likely ghost/stale registration evidence.
+- Do not allow automation to push to branches for PRs that are no longer open; require a live `state/mergedAt/headRefOid` check immediately before push.
 - Do not treat `autoMergeRequest != null` as success by itself. Verify `mergeStateStatus` and actual merge outcome.
 - Prefer deterministic `gh api` evidence over assumptions.
 - If permissions are insufficient, report missing scope/permission and continue with remaining checks.
