@@ -45,10 +45,12 @@ echo "Auditing $OWNER_REPO (default: $DEFAULT_BRANCH)"
 - Active default-branch ruleset includes `pull_request` and `required_status_checks`.
 - Required status check contexts exactly match live check names.
 - Default-branch ruleset has no bypass actors (`bypass_actors: []`).
+- Required status check contexts are limited to merge-critical gates; non-critical provider checks (for example `Vercel Preview Comments`) may not be present and may unintentionally break auto-merge.
 - `update` rule is optional:
-  - If enabled, keep default no-bypass posture and solve merge flow with correct workflow/ruleset design.
+  - If enabled, bypass actors must be intentionally configured.
   - If not needed for your workflow, remove it to prevent unnecessary `BLOCKED` states.
 - Branch updater workflow is not `push`-only (has at least one fallback trigger such as `pull_request_target`, `schedule`, or `workflow_dispatch`).
+- Branch updater verifies required CI checks are present on the latest PR head SHA after any update-branch operation.
 - Auto-merge workflow tolerates transient API failures (retry/backoff).
 - `delete_branch_on_merge: true` (or equivalent cleanup automation).
 
@@ -114,29 +116,19 @@ Remediation:
 
 ---
 
-### 4. Default no-bypass policy is enforced, and `update` remains intentional
+### 4. `update` rule and bypass actors are compatible with your auto-merge flow
 
 Verification:
 ```bash
 gh api "repos/$OWNER/$REPO/rulesets" \
   --jq '.[] | select(.enforcement=="active" and .target=="branch") |
-    {id,name,includes_default:((.conditions.ref_name.include // []) | index("~DEFAULT_BRANCH") != null),
-     has_update:([.rules[].type] | index("update") != null),
-     bypass_actor_count:((.bypass_actors // []) | length),
+    {id,name,has_update:([.rules[].type] | index("update") != null),
      bypass_actors:((.bypass_actors // []) | map({actor_type,actor_id,bypass_mode}))}'
-
-# Optional deep check for default-branch ruleset:
-RULESET_ID="$(gh api "repos/$OWNER/$REPO/rulesets" \
-  --jq '.[] | select(.enforcement=="active" and .target=="branch") |
-    select((.conditions.ref_name.include // []) | index("~DEFAULT_BRANCH")) | .id' | head -n 1)"
-gh api "repos/$OWNER/$REPO/rulesets/$RULESET_ID" \
-  --jq '{id,name,current_user_can_bypass,bypass_actors}'
 ```
 
 Pass criteria:
-- For the default-branch ruleset, `bypass_actor_count` is `0` as the default policy.
 - If `has_update` is `false`, this is acceptable when no branch-update automation is required.
-- If `has_update` is `true`, merge flow still works without relying on permanent bypass actors.
+- If `has_update` is `true`, bypass actors and modes are intentionally set so trusted maintainers/automation can still complete merges.
 
 Remediation:
 - For solo-maintainer repos, prefer removing unneeded `update` requirements.
@@ -296,6 +288,39 @@ Remediation:
 
 ---
 
+### 10a. Required checks are attached to the latest PR head SHA
+
+This catches the incident pattern where a branch updater creates a new PR head commit, but `ci` only exists on the previous SHA, leaving auto-merge `BLOCKED`.
+
+Verification:
+```bash
+PR_NUMBER="<pr_number>"
+gh pr view "$PR_NUMBER" \
+  --json headRefName,headRefOid,mergeStateStatus,statusCheckRollup
+
+HEAD_SHA="$(gh pr view "$PR_NUMBER" --json headRefOid -q .headRefOid)"
+gh api "repos/$OWNER/$REPO/commits/$HEAD_SHA/check-runs" \
+  --jq '[.check_runs[] | {name,status,conclusion}]'
+```
+
+Pass criteria:
+- Every required status check context appears on the PR's current `headRefOid`.
+- If updater automation changed the head SHA, required checks (especially `ci`) are present or queued on that new SHA.
+
+Remediation:
+- Immediate unstick:
+```bash
+HEAD_REF="$(gh pr view "$PR_NUMBER" --json headRefName -q .headRefName)"
+gh workflow run CI --ref "$HEAD_REF"
+```
+- Permanent fix:
+  - Re-resolve `headRefName` + `headRefOid` after updater actions.
+  - Verify required checks on that exact SHA.
+  - Dispatch CI when required checks are missing.
+  - Keep non-critical checks out of required-status contexts.
+
+---
+
 ### 11. `Cannot update this protected ref` diagnostics for branch-update workflows
 
 Verification:
@@ -401,9 +426,13 @@ gh pr merge <pr_number> --auto --squash --repo "$OWNER_REPO"
 # Force update a behind branch
 gh api --method PUT "repos/$OWNER/$REPO/pulls/<pr_number>/update-branch" -f update_method=merge
 
+# Ensure required CI exists on current head
+HEAD_REF="$(gh pr view <pr_number> --json headRefName -q .headRefName)"
+gh workflow run CI --ref "$HEAD_REF"
+
 # Re-check status
 gh pr view <pr_number> --repo "$OWNER_REPO" \
-  --json mergeStateStatus,autoMergeRequest,statusCheckRollup
+  --json headRefOid,mergeStateStatus,autoMergeRequest,statusCheckRollup
 ```
 
 ## Tooling Notes (CLI Gotchas)
