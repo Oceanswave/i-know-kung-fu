@@ -233,18 +233,18 @@ The emotional arc and the belief chain are two views of the same journey. The be
 
 Present the complete psychographic profile to the user. Ask:
 
-- [ ] Does the belief chain sequence feel right?
-- [ ] Do the fears match what you actually hear from prospects?
-- [ ] Is any desire or pain point overweighted or underweighted?
-- [ ] Does the concrete person feel like a real prospect, or a caricature?
+- Does the belief chain sequence feel right?
+- Do the fears match what you actually hear from prospects?
+- Is any desire or pain point overweighted or underweighted?
+- Does the concrete person feel like a real prospect, or a caricature?
 
 Proceed to Phase C ONLY after user approval or adjustment.
 
 ## Phase C: Iterative Script Writing
 
-Write the VSL using the 17-beat framework below. Map each beat to the corresponding belief chain links and emotional arc stages from the approved psychographic profile.
+Write the VSL using the beat framework below. Map each beat to the corresponding belief chain links and emotional arc stages from the approved psychographic profile.
 
-The 17 beats guide the viewer through a precise emotional progression:
+The beats guide the viewer through a precise emotional progression:
 
 HOOK (capture) → QUALIFY (filter) → PROOF (believe) → AGITATE (feel) → BRIDGE (forgive) → REVEAL (understand) → PROVE MECHANISM (trust) → HANDLE OBJECTIONS (overcome) → DIAGNOSE (reframe) → FUTURE PACE (desire) → IMPLEMENT (ease) → COST OF INACTION (urgency) → QUALIFY CHARACTER (exclusivity) → NOW OR NEVER (finality) → CTA (action)
 
