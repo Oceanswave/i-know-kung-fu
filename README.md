@@ -15,6 +15,7 @@ This repo is where I keep skills that are useful in my day-to-day work and skill
   - `skills/creative-writing/`
   - `skills/book-concept-strategy/`
   - `skills/book-manuscript-development/`
+  - `skills/vsl-scriptwriting/`
 - GitHub workflows for required checks, auto-merge, closed-branch cleanup, and policy drift audits
 
 ## Repository Structure
@@ -33,7 +34,10 @@ This repo is where I keep skills that are useful in my day-to-day work and skill
 │   ├── book-concept-strategy/
 │   │   ├── SKILL.md
 │   │   └── agents/openai.yaml
-│   └── book-manuscript-development/
+│   ├── book-manuscript-development/
+│   │   ├── SKILL.md
+│   │   └── agents/openai.yaml
+│   └── vsl-scriptwriting/
 │       ├── SKILL.md
 │       └── agents/openai.yaml
 └── .github/workflows/
@@ -66,3 +70,8 @@ The `book-manuscript-development` skill is designed to build full manuscript com
 
 - Skill definition: `skills/book-manuscript-development/SKILL.md`
 - UI metadata: `skills/book-manuscript-development/agents/openai.yaml`
+
+The `vsl-scriptwriting` skill writes high-converting Video Sales Letter scripts through a four-phase process.
+
+- Skill definition: `skills/vsl-scriptwriting/SKILL.md`
+- UI metadata: `skills/vsl-scriptwriting/agents/openai.yaml`

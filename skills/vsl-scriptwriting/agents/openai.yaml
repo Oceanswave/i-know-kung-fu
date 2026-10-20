@@ -1,0 +1,4 @@
+interface:
+  display_name: "VSL Scriptwriting"
+  short_description: "Write high-converting video sales letter scripts"
+  default_prompt: "Write a high-converting VSL script using the four-phase process: collect business info, build psychographic profile, write iterative script drafts, deliver final assets."

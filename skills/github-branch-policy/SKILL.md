@@ -44,6 +44,7 @@ echo "Auditing $OWNER_REPO (default: $DEFAULT_BRANCH)"
 - Repository has `allow_auto_merge: true`.
 - Active default-branch ruleset includes `pull_request` and `required_status_checks`.
 - Required status check contexts exactly match live check names.
+- Default-branch ruleset has no bypass actors (`bypass_actors: []`).
 - Required status check contexts are limited to merge-critical gates; non-critical provider checks (for example `Vercel Preview Comments`) stay optional.
 - `update` rule is optional:
   - If enabled, bypass actors must be intentionally configured.
@@ -134,7 +135,8 @@ Pass criteria:
 
 Remediation:
 - For solo-maintainer repos, prefer removing unneeded `update` requirements.
-- If `update` is required, add explicit bypass actors/modes for roles/apps that must merge.
+- Remove bypass actors from the default-branch ruleset.
+- If emergency bypass is temporarily required, keep scope minimal, time-box it, document owner approval, and remove it immediately after incident resolution.
 - Re-test with a smoke PR after policy changes.
 
 ---
@@ -481,6 +483,8 @@ gh pr view <pr_number> --repo "$OWNER_REPO" \
 
 - Do not delete branches until confirmed stale and unprotected.
 - Do not disable workflows blindly; verify canonical registration first.
+- Default policy is no bypass actors on default-branch rulesets unless there is a documented, time-boxed incident exception.
+- Default policy is no bypass actors on default-branch rulesets unless there is a documented, time-boxed incident exception.
 - Treat `push + 0 jobs + no logs` on workflow runs as likely ghost/stale registration evidence.
 - Do not allow automation to push to branches for PRs that are no longer open; require a live `state/mergedAt/headRefOid` check immediately before push.
 - Do not treat `autoMergeRequest != null` as success by itself. Verify `mergeStateStatus` and actual merge outcome.
